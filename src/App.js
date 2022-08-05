@@ -1,82 +1,104 @@
-import "./App.css";
-import React from "react";
-import io from "socket.io-client";
-import { useEffect, useState } from "react";
+import './App.css'
+import React from 'react'
+import io from 'socket.io-client'
+import { useEffect, useState } from 'react'
 
-const socket = io("http://io.nvdise.space", {
-  timeout: 2000,
-  secure: true,
-  reconnection: false,
-  transports: ["websocket"],
-  // transports: ['polling'],
-});
+const socket = io('http://io.nvdise.space', {
+    timeout: 2000,
+    secure: true,
+    reconnection: false,
+    transports: ['websocket'],
+    // transports: ['polling'],
+})
 
-function App() {
-  const [Daydata, setDayData] = useState([""]);
-  const [data, setData] = useState([""]);
-  const [data2, setData2] = useState([]);
-  const [hourData, setHourData] = useState([]);
-  const [hourData12, setHourData12] = useState([]);
-  const [dataMarket1, setDataMarket1] = useState([]);
-  const [dataMarket2, setDataMarket2] = useState(["aaaaa"]);
-  let structureData = {};
-  let tradeData = {};
-  window.tradeData = tradeData;
-  socket.on("market-data", (msg) => {
-    if (msg.type === "trade") {
-      // if(msg.symbol_id === 'BINANCE_SPOT_BTC_USDT')
-      // setData2(msg)
-      // else
-      // setData(msg)
-      structureData[msg.symbol_id] = 'BINANCE_SPOT_BTC_USDT';
-      structureData[msg.symbol_id] = msg;
-      for (var i in structureData[msg.symbol_id]) {
-        if (i.symbol_id === "BINANCE_SPOT_BTC_USDT") {
-          setDataMarket1(i);
-          console.log(true);
-          console.log(dataMarket1);
-        } else {
-          setDataMarket2(i);
-          console.log(false);
+class MarketSymbolInfo {
+    constructor() {
+        this.trade = {}
+        this.ohlcv = {
+            '1DAY': {},
+            '12HRS': {},
+            '1HRS': {},
         }
-      }
     }
-
-    if (msg.type === "ohlcv") {
-      structureData[msg.symbol_id] = {};
-      structureData[msg.symbol_id]["ohlcv"] = {};
-      structureData[msg.symbol_id]["ohlcv"] = msg;
-      let tempData = structureData[msg.symbol_id]["ohlcv"];
-
-      if (tempData.period_id === "1DAY") {
-        setDayData(tempData);
-      } else if (tempData.period_id === "1HRS") {
-        setHourData(tempData);
-      } else if (tempData.period_id === "12HRS") {
-        setHourData12(hourData12);
-      }
-    }
-  });
-
-  useEffect(() => {
-    socket.on("connect", () => {
-      console.log(socket.id);
-    });
-  }, []);
-
-  return (
-    <div className="App">
-      <h1 id="ID">aaaaa</h1>
-      {JSON.stringify(Daydata)}
-      <div>-------------------------------------</div>
-      {JSON.stringify(hourData)}
-      <div>-------------------------------------</div>
-      {JSON.stringify(hourData12)}
-      {JSON.stringify(dataMarket1)}
-      <div>---------------------------------------</div>
-      {JSON.stringify(dataMarket2)}
-    </div>
-  );
 }
 
-export default App;
+let structureData = {}
+window.structureData = structureData
+
+function App() {
+
+    const [dataTable, setDataTable] = useState([]);
+    const [listSymbolId, setListSymbolId] = useState([]);
+
+    socket.on('market-data', (msg) => {
+        if (!structureData[msg.symbol_id]) {
+            structureData[msg.symbol_id] = new MarketSymbolInfo()
+        }
+        if (msg.type === 'trade') {
+            structureData[msg.symbol_id]['trade'] = msg
+        }
+        if (msg.type === 'ohlcv') {
+            if (msg.period_id === '1DAY') {
+                structureData[msg.symbol_id]['ohlcv']['1DAY'] = msg
+            }
+            if (msg.period_id === '12HRS') {
+                structureData[msg.symbol_id]['ohlcv']['12HRS'] = msg
+            }
+            if (msg.period_id === '1HRS') {
+                structureData[msg.symbol_id]['ohlcv']['1HRS'] = msg
+            }
+        }
+        // updateData()
+    })
+
+    
+    useEffect(() => {
+      socket.on('connect', () => {
+        console.log(socket.id)
+      })
+
+      const interval = setInterval(() => {
+        updateData()
+      }, 5000);
+      return()=>{
+        clearInterval(interval);
+        }
+    }, [])
+    const updateData=()=>{
+
+      // console.log(structureData)
+      const listSymbol = Object.keys(structureData)
+      // console.log(listSymbol)
+      setListSymbolId(listSymbol)
+      const dataTb = listSymbol.map((key) => {
+        return { ...structureData[key] }
+      })
+      setDataTable(dataTb)
+      // console.log(structureData, dataTb)
+    }
+
+
+    return (
+        <div className='App'>
+            <h1 id='ID'>aaaaa</h1>
+            <table>
+              <tr>
+                <td>Symbol</td>
+                <td>Price</td>
+                <td>Volume</td>
+              </tr>
+                {dataTable.map((item, i) => {
+                    return (
+                        <tr>
+                            <td>{item.trade.symbol_id}</td>
+                            <td>{item.trade.price}</td>
+                            <td>{item.trade.size}</td>
+                        </tr>
+                    )
+                })}
+            </table>
+        </div>
+    )
+}
+
+export default App
